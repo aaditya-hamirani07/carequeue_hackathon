@@ -1,4 +1,4 @@
-# CareQueue Assist (MedTech Intelligent Patient Prioritization)
+# PPL (Patient Priority List)
 
 > **Assistive Healthcare Prioritization & Dynamic Triage Radar**  
 > Built strictly as a provider decision-support tool. Non-diagnostic, non-prescriptive, and fully transparent.
