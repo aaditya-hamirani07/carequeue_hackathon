@@ -176,10 +176,3 @@ cd frontend && npm run build
 ```
 
 ---
-
-## Clinical Safety & Limitations
-
-- **Provider Decision Support Only:** The system organises information to assist staff; it does not replace clinical judgement.
-- **Dynamic Recalculation:** Urgency scores factor in dynamic wait times to surface physiological staleness.
-- **Single-Node Persistence:** Designed for clinical workstations using SQLite WAL mode.
-- **No Treatment Recommendations:** CareQueue Assist does not prescribe medication, suggest treatments, or make triage decisions autonomously.
