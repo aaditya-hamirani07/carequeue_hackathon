@@ -156,23 +156,3 @@ Open: **http://localhost:5173**
 | POST   | `/api/demo/reset`               | Reset database to initial 6-patient demo baseline              |
 
 Interactive Swagger Documentation: **http://127.0.0.1:8000/docs**
-
----
-
-## Running Tests
-
-```bash
-# 1. Clinical scoring & SQLite unit tests
-python test_backend.py
-
-# 2. Complete End-to-End API & attendance integration suite (backend running)
-python test_e2e.py
-
-# 3. Attendance & restart persistence test
-python tests/test_attendance.py
-
-# 4. Frontend production compilation
-cd frontend && npm run build
-```
-
----
