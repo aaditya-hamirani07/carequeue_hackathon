@@ -1,209 +1,185 @@
 # CareQueue Assist
 
-**Assistive Clinical Patient Prioritisation Dashboard**
+**Assistive Clinical Patient Prioritisation & Attended Records Workstation**
 
-CareQueue Assist helps healthcare providers organise and prioritise patient cases using structured clinical data — NEWS2 vital signs scoring, symptom analysis, and wait time weighting. It is a provider decision-support tool only. It does not diagnose, prescribe, or make final clinical decisions. The provider remains the decision-maker at all times.
+CareQueue Assist helps healthcare providers organise and prioritise patient cases using structured clinical data — NEWS2 vital signs scoring, symptom analysis, wait time weighting, and provider attendance history.
 
----
-
-## Hackathon Context
-
-Built for a 6-hour MedTech hackathon focused on helping healthcare providers **organise and prioritise patient cases** using relevant available information, while remaining strictly assistive.
+> **CLINICAL SAFETY NOTICE:** CareQueue Assist is strictly a provider decision-support tool. It does not diagnose, prescribe, recommend treatment, or make final clinical decisions. Qualified healthcare professionals remain the sole clinical decision-makers at all times.
 
 ---
 
-## Architecture
+## Key Features
+
+1. **Active Clinical Prioritisation Queue**
+   - Deterministic Royal College of Physicians NEWS2 physiological scoring.
+   - Multi-factor urgency engine incorporating vitals, red-flag symptoms, wait time drift, and patient medical history.
+   - Dynamic real-time re-ranking when repeat vitals or clinical deterioration occur.
+   - Clear clinical priority tiers: `P1 IMMEDIATE`, `P2 VERY URGENT`, `P3 URGENT`, `P4 STANDARD`.
+   - Never communicates priority via colour alone — explicit clinical text and high-contrast badges throughout.
+
+2. **Attended Patient Records Workflow**
+   - Operational **"Attend Patient"** workflow with verification confirmation modal.
+   - Once attended, patient leaves the active queue immediately and is preserved permanently in **Attended Records**.
+   - Top-level primary navigation between **QUEUE** and **RECORDS** with live count badges.
+   - Detailed clinical history table with live search (name, MRN, complaint, clinician) and priority filtering.
+   - Read-only historical record view in the drawer with attendance timestamp and attending clinician metadata.
+
+3. **Clinician Override & Audit Trail**
+   - Attending physicians and administrators can override system-calculated priority with mandatory clinical rationale.
+   - Immutable audit trail recording every intake, vitals observation, provider override, clinical note, and attendance event.
+
+4. **Local-First Deterministic AI Briefings**
+   - Structured, explainable clinical briefings generated locally and offline — **zero external API keys required**.
+   - Fully deterministic and instant; optional fallback to external LLMs (Gemini / OpenAI) via `.env` if desired.
+
+5. **Local SQLite Persistence**
+   - Stored in `data/carequeue.db` with write-ahead logging (WAL mode).
+   - All patient observations, overrides, and attendance records persist across server restarts.
+   - One-click **Demo Reset** (`POST /api/demo/reset`) restores the initial 6-patient demo baseline.
+
+---
+
+## Project Structure
 
 ```
 abc/
 ├── backend/                   # FastAPI application
-│   ├── main.py                # REST endpoints (8 routes)
-│   ├── database.py            # SQLite persistence layer
-│   ├── models.py              # Pydantic data models
-│   ├── scoring_engine.py      # Deterministic NEWS2 + composite urgency scoring
-│   ├── ai_engine.py           # Local-first structured clinical briefing
-│   ├── mock_data.py           # Six initial seed patients (demo dataset)
-│   └── requirements.txt       # Python dependencies
+│   ├── main.py                # REST API endpoints & route handlers
+│   ├── database.py            # SQLite schema, queries & WAL connection
+│   ├── models.py              # Pydantic data schemas & enums
+│   ├── scoring_engine.py      # Deterministic NEWS2 + urgency scoring model
+│   ├── ai_engine.py           # Local-first explainability & clinical briefings
+│   ├── mock_data.py           # Initial 6-patient seed dataset
+│   └── requirements.txt       # Backend dependencies
 │
 ├── frontend/                  # React 18 + Vite + TailwindCSS
 │   ├── src/
-│   │   ├── App.jsx            # Main application shell
-│   │   ├── components/        # PatientCard, PatientDetailDrawer, modals
-│   │   ├── utils.js           # Tier config, formatters, helpers
-│   │   └── index.css          # Global styles
+│   │   ├── components/        # Header, PatientCard, PatientDetailDrawer, RecordsView, modals
+│   │   ├── App.jsx            # Main workstation shell & navigation tabs
+│   │   ├── utils.js           # Explicit priority tier configs & formatters
+│   │   └── index.css          # Clinical typography & styles
 │   └── package.json
 │
-├── tests/                     # Test suite
-│   ├── test_backend.py        # Unit tests: NEWS2, scoring, SQLite
-│   └── test_e2e.py            # Integration tests: all API endpoints
+├── tests/                     # Automated test suites
+│   ├── test_backend.py        # Unit tests: NEWS2 scoring, SQLite models
+│   ├── test_e2e.py            # End-to-end integration tests: vitals escalation, overrides, attendance
+│   └── test_attendance.py     # Attendance workflow & restart persistence verification
 │
-├── data/                      # SQLite database directory
-│   └── carequeue.db           # Created automatically on first run (git-ignored)
+├── data/                      # Local SQLite persistence directory
+│   ├── .gitkeep
+│   └── carequeue.db           # SQLite database file (git-ignored)
 │
-├── test_backend.py            # Root entry point → delegates to tests/
-├── test_e2e.py                # Root entry point → delegates to tests/
-├── run.bat                    # Windows launcher (backend + frontend)
-├── start.sh                   # Unix launcher (backend + frontend)
+├── test_backend.py            # Root entry point → delegates to tests/test_backend.py
+├── test_e2e.py                # Root entry point → delegates to tests/test_e2e.py
+├── run.bat                    # Windows launcher (FastAPI on :8000, Vite on :5173)
+├── start.sh                   # Unix/macOS launcher
+├── requirements.txt           # Root Python dependencies
 ├── .env.example               # Environment variable reference
-└── PROJECT_SPEC.md            # Hackathon project specification
+└── .gitignore
 ```
 
 ---
 
-## Technology Stack
+## Database Schema (SQLite)
 
-| Layer       | Technology                             |
-|-------------|----------------------------------------|
-| Frontend    | React 18, Vite 5, TailwindCSS 3        |
-| Backend     | FastAPI, Uvicorn, Pydantic v2          |
-| Database    | SQLite (built-in `sqlite3`, no server) |
-| Scoring     | Deterministic NEWS2 + composite model  |
-| AI Briefing | Local heuristic engine (offline-first) |
+Data is persisted in `data/carequeue.db`:
 
----
-
-## Local Persistence (SQLite)
-
-Patient data is stored in **`data/carequeue.db`** — a local SQLite file created automatically on first run. No external database, no cloud service.
-
-**Schema:**
-
-| Table            | Purpose                                        |
-|------------------|------------------------------------------------|
-| `patients`       | Master patient record (vitals snapshot, status)|
-| `vitals_history` | Every recorded vitals set per patient          |
-| `audit_notes`    | Clinical notes, override audit trail           |
-
-**Persistence behaviour:**
-- Changes to vitals, priority overrides, new patients, and status updates **survive backend restarts**.
-- The database file is git-ignored (`data/*.db`).
+| Table                | Purpose                                                                 |
+|----------------------|-------------------------------------------------------------------------|
+| `patients`           | Active and attended patient master records, vitals snapshot, status     |
+| `vitals_history`     | Chronological log of all recorded vitals sets per patient               |
+| `audit_notes`        | Clinical notes, provider overrides, and attendance audit trail          |
+| `attendance_records` | Dedicated attended records with timestamp, clinician, tier, and NEWS2  |
 
 ---
 
-## Seed Data (Six Demo Patients)
-
-The initial demonstration dataset consists of six carefully designed patients from `backend/mock_data.py`. They cover the full priority spectrum (P1–P4) and include a mix of clinical presentations.
-
-On first run (empty database), these six patients are automatically seeded into SQLite. Subsequent backend restarts load from the persisted database — **changes to the six patients are preserved**.
-
-> **Demo Reset** (`POST /api/demo/reset`) wipes the database and reseeds the original six patients, restoring the exact initial clinical baseline.
-
----
-
-## Local-First AI
-
-The AI engine (`backend/ai_engine.py`) generates structured, provider-facing clinical briefings using a **deterministic heuristic** — no external API key required.
-
-- Default: `CAREQUEUE_AI_MODE=local` (offline, deterministic)
-- Optional: `CAREQUEUE_AI_MODE=gemini` or `openai` with keys in `.env`
-- External failures fall back to local automatically
-- The core NEWS2 scoring engine is **always deterministic** — AI is briefing only
-
----
-
-## Clinical Safety
-
-CareQueue Assist is an assistive prototype. It does **not**:
-
-- Diagnose patients
-- Prescribe treatment or medication
-- Make final clinical decisions
-- Claim to replace clinician judgement
-
-Briefings use neutral, informational language. The provider is always the decision-maker.
-
----
-
-## Setup
+## Setup & Running
 
 ### Requirements
 - Python 3.9+
 - Node.js 18+
 
-### Installation
+### Quick Start (Windows)
+```bat
+.\run.bat
+```
+Launches the FastAPI backend on `http://127.0.0.1:8000` and Vite frontend on `http://localhost:5173`.
 
+### Quick Start (Unix / macOS)
 ```bash
-# Clone and navigate to project root
-cd abc
+bash start.sh
+```
 
-# Backend dependencies
-pip install -r backend/requirements.txt
+### Manual Setup
 
-# Frontend dependencies
+1. **Install backend dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+2. **Install frontend dependencies:**
+```bash
 cd frontend
 npm install
 cd ..
 ```
 
----
-
-## Running the Application
-
-### Windows (recommended)
-```bat
-.\run.bat
-```
-This opens two console windows — backend on port 8000, frontend on port 5173.
-
-### Unix/macOS
-```bash
-bash start.sh
-```
-
-### Manual (separate terminals)
-
-**Terminal 1 — Backend:**
+3. **Start backend (Terminal 1):**
 ```bash
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-**Terminal 2 — Frontend:**
+4. **Start frontend (Terminal 2):**
 ```bash
 cd frontend
 npm run dev
 ```
 
-Then open: **http://localhost:5173**
+Open: **http://localhost:5173**
 
 ---
 
 ## API Reference
 
-| Method | Endpoint                              | Description                             |
-|--------|---------------------------------------|-----------------------------------------|
-| GET    | `/api/patients`                       | All patients, sorted by priority        |
-| GET    | `/api/patients/{id}`                  | Single patient with AI briefing         |
-| POST   | `/api/patients`                       | Admit new patient                       |
-| POST   | `/api/patients/{id}/vitals`           | Record vitals + re-score urgency        |
-| POST   | `/api/patients/{id}/override`         | Clinician priority override (audited)   |
-| POST   | `/api/patients/{id}/notes`            | Add clinical note                       |
-| POST   | `/api/patients/{id}/status`           | Update patient status                   |
-| GET    | `/api/stats`                          | Queue summary statistics                |
-| POST   | `/api/demo/reset`                     | Restore original six demo patients      |
+| Method | Endpoint                        | Description                                                    |
+|--------|---------------------------------|----------------------------------------------------------------|
+| GET    | `/api/patients`                 | Active patients sorted by priority tier and urgency score      |
+| GET    | `/api/patients/{id}`            | Patient detail with clinical briefing and history              |
+| POST   | `/api/patients`                 | Admit new patient into active queue                            |
+| POST   | `/api/patients/{id}/vitals`     | Record repeat vitals; dynamically recalculates NEWS2 & urgency |
+| POST   | `/api/patients/{id}/override`   | Provider priority override with required audit rationale       |
+| POST   | `/api/patients/{id}/notes`      | Append clinical observation note                               |
+| POST   | `/api/patients/{id}/status`     | Update triage status                                           |
+| POST   | `/api/patients/{id}/attend`     | Mark patient as attended (moves from Queue to Records)         |
+| GET    | `/api/records`                  | Retrieve all attended patient history records (newest first)   |
+| GET    | `/api/stats`                    | Queue telemetry (active cases, P1, P2, avg wait, attended)     |
+| POST   | `/api/demo/reset`               | Reset database to initial 6-patient demo baseline              |
 
-Interactive API docs: **http://127.0.0.1:8000/docs**
+Interactive Swagger Documentation: **http://127.0.0.1:8000/docs**
 
 ---
 
 ## Running Tests
 
 ```bash
-# From repository root (backend must NOT be running for unit tests)
+# 1. Clinical scoring & SQLite unit tests
 python test_backend.py
 
-# From repository root (backend MUST be running for E2E tests)
+# 2. Complete End-to-End API & attendance integration suite (backend running)
 python test_e2e.py
 
-# Frontend production build verification
+# 3. Attendance & restart persistence test
+python tests/test_attendance.py
+
+# 4. Frontend production compilation
 cd frontend && npm run build
 ```
 
 ---
 
-## Limitations
+## Clinical Safety & Limitations
 
-- **In-memory urgency scoring**: NEWS2 and composite scores are recalculated on every API call (not cached in DB). This is intentional — wait time is dynamic.
-- **No authentication**: Role is self-declared at login for demo purposes only.
-- **No department/bed routing**: Queue management only; no bed assignment.
-- **Single-instance only**: SQLite WAL mode supports concurrent reads; not designed for distributed multi-server deployment.
-- **No external LLM required**: The local briefing engine is heuristic. Connecting Gemini/OpenAI is optional via `.env`.
+- **Provider Decision Support Only:** The system organises information to assist staff; it does not replace clinical judgement.
+- **Dynamic Recalculation:** Urgency scores factor in dynamic wait times to surface physiological staleness.
+- **Single-Node Persistence:** Designed for clinical workstations using SQLite WAL mode.
+- **No Treatment Recommendations:** CareQueue Assist does not prescribe medication, suggest treatments, or make triage decisions autonomously.

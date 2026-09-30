@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, UserPlus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, UserPlus, HeartPulse } from 'lucide-react';
 
 export function AdmitPatientModal({ isOpen, onClose, onAdmitPatient }) {
   if (!isOpen) return null;
@@ -18,6 +18,17 @@ export function AdmitPatientModal({ isOpen, onClose, onAdmitPatient }) {
   const [temperature, setTemperature] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !chiefComplaint.trim()) return;
@@ -30,11 +41,11 @@ export function AdmitPatientModal({ isOpen, onClose, onAdmitPatient }) {
     const patientData = {
       id,
       mrn,
-      name,
+      name: name.trim(),
       age: age ? parseInt(age) : 40,
       gender,
       arrival_time: arrivalTime,
-      chief_complaint: chiefComplaint,
+      chief_complaint: chiefComplaint.trim(),
       symptoms: symptoms.split(',').map(s => s.trim()).filter(Boolean),
       medical_history: medicalHistory.split(',').map(s => s.trim()).filter(Boolean),
       allergies: [],
@@ -54,7 +65,7 @@ export function AdmitPatientModal({ isOpen, onClose, onAdmitPatient }) {
         {
           timestamp: arrivalTime,
           author: "Triage Reception",
-          text: `Intake registered: ${chiefComplaint}`
+          text: `Intake registered: ${chiefComplaint.trim()}`
         }
       ],
       status: "WAITING"
@@ -66,72 +77,78 @@ export function AdmitPatientModal({ isOpen, onClose, onAdmitPatient }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white border border-slate-200 rounded-xl w-full max-w-lg shadow-xl overflow-hidden max-h-[90vh] flex flex-col text-slate-900">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white border border-slate-200 rounded-xl w-full max-w-lg shadow-xl overflow-hidden text-slate-900"
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-shrink-0">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-slate-900 text-white">
               <UserPlus className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-sm tracking-tight">Admit New Patient Case</h3>
-              <p className="text-xs font-mono text-slate-500">Intake Triage Registration</p>
+              <h3 className="font-bold text-slate-900 text-sm tracking-tight">Admit New Patient</h3>
+              <p className="text-xs text-slate-500 font-medium">Register intake demographics and baseline vitals</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 transition">
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-900 transition p-1 rounded"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* Demographics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
               <label className="text-[11px] font-semibold text-slate-700 block mb-1">Full Name *</label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Jordan Hayes"
+                placeholder="e.g. John Doe"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
               />
             </div>
+
             <div>
-              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Age *</label>
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Age</label>
               <input
                 type="number"
-                required
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
-                placeholder="e.g. 52"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
+                placeholder="e.g. 45"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Gender</label>
-              <select
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
-              >
-                <option value="Female">Female</option>
-                <option value="Male">Male</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Medical History (comma sep)</label>
-              <input
-                type="text"
-                value={medicalHistory}
-                onChange={(e) => setMedicalHistory(e.target.value)}
-                placeholder="e.g. Hypertension, Asthma"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
-              />
+          <div>
+            <label className="text-[11px] font-semibold text-slate-700 block mb-1">Gender</label>
+            <div className="flex gap-2">
+              {['Female', 'Male', 'Other'].map(g => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGender(g)}
+                  className={`flex-1 py-1.5 px-3 rounded-lg border text-xs font-semibold transition ${
+                    gender === g
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -142,105 +159,125 @@ export function AdmitPatientModal({ isOpen, onClose, onAdmitPatient }) {
               required
               value={chiefComplaint}
               onChange={(e) => setChiefComplaint(e.target.value)}
-              placeholder="e.g. Acute severe lower back pain and weakness"
+              placeholder="e.g. Sudden severe left-sided chest pain radiating to jaw"
               className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
             />
           </div>
 
-          <div>
-            <label className="text-[11px] font-semibold text-slate-700 block mb-1">Symptoms (comma separated)</label>
-            <input
-              type="text"
-              value={symptoms}
-              onChange={(e) => setSymptoms(e.target.value)}
-              placeholder="e.g. sudden weakness, back spasm, nausea"
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Symptoms (comma separated)</label>
+              <input
+                type="text"
+                value={symptoms}
+                onChange={(e) => setSymptoms(e.target.value)}
+                placeholder="e.g. chest tightness, diaphoresis"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Medical History (comma separated)</label>
+              <input
+                type="text"
+                value={medicalHistory}
+                onChange={(e) => setMedicalHistory(e.target.value)}
+                placeholder="e.g. Hypertension, CAD"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
+              />
+            </div>
           </div>
 
-          {/* Initial Vitals */}
-          <div className="pt-2 border-t border-slate-200">
-            <span className="text-[11px] font-mono font-bold uppercase text-slate-600 block mb-2">Initial Intake Vitals</span>
-            <div className="grid grid-cols-3 gap-2 font-mono">
+          {/* Baseline Vitals */}
+          <div className="pt-2 border-t border-slate-100">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 block mb-2">
+              Initial Intake Vitals
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div>
-                <label className="text-[10px] text-slate-500 block">HR (bpm)</label>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Heart Rate (bpm)</label>
                 <input
                   type="number"
                   value={heartRate}
                   onChange={(e) => setHeartRate(e.target.value)}
-                  placeholder="80"
-                  className="w-full bg-slate-50 border border-slate-200 rounded p-1.5 text-xs text-slate-900"
+                  placeholder="75"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
                 />
               </div>
+
               <div>
-                <label className="text-[10px] text-slate-500 block">Systolic BP</label>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Systolic BP (mmHg)</label>
                 <input
                   type="number"
                   value={systolicBp}
                   onChange={(e) => setSystolicBp(e.target.value)}
                   placeholder="120"
-                  className="w-full bg-slate-50 border border-slate-200 rounded p-1.5 text-xs text-slate-900"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
                 />
               </div>
+
               <div>
-                <label className="text-[10px] text-slate-500 block">Diastolic BP</label>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Diastolic BP (mmHg)</label>
                 <input
                   type="number"
                   value={diastolicBp}
                   onChange={(e) => setDiastolicBp(e.target.value)}
                   placeholder="80"
-                  className="w-full bg-slate-50 border border-slate-200 rounded p-1.5 text-xs text-slate-900"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
                 />
               </div>
+
               <div>
-                <label className="text-[10px] text-slate-500 block">SpO2 (%)</label>
+                <label className="text-[10px] text-slate-500 block mb-0.5">SpO2 (%)</label>
                 <input
                   type="number"
                   step="0.1"
                   value={spO2}
                   onChange={(e) => setSpO2(e.target.value)}
-                  placeholder="98"
-                  className="w-full bg-slate-50 border border-slate-200 rounded p-1.5 text-xs text-slate-900"
+                  placeholder="98.0"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
                 />
               </div>
+
               <div>
-                <label className="text-[10px] text-slate-500 block">Resp Rate</label>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Resp Rate (/min)</label>
                 <input
                   type="number"
                   value={respRate}
                   onChange={(e) => setRespRate(e.target.value)}
                   placeholder="16"
-                  className="w-full bg-slate-50 border border-slate-200 rounded p-1.5 text-xs text-slate-900"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
                 />
               </div>
+
               <div>
-                <label className="text-[10px] text-slate-500 block">Temp (°C)</label>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Temp (°C)</label>
                 <input
                   type="number"
                   step="0.1"
                   value={temperature}
                   onChange={(e) => setTemperature(e.target.value)}
-                  placeholder="37.0"
-                  className="w-full bg-slate-50 border border-slate-200 rounded p-1.5 text-xs text-slate-900"
+                  placeholder="36.8"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
                 />
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition"
+              className="px-3.5 py-2 rounded-md border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim() || !chiefComplaint.trim()}
-              className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-black text-xs font-bold text-white transition shadow-sm active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-xs font-bold transition disabled:opacity-50 active:scale-95 shadow-xs"
             >
-              {isSubmitting ? 'Admitting...' : 'Admit Patient'}
+              {isSubmitting ? 'Admitting...' : 'Admit & Prioritize'}
             </button>
           </div>
         </form>
@@ -249,3 +286,4 @@ export function AdmitPatientModal({ isOpen, onClose, onAdmitPatient }) {
     </div>
   );
 }
+export default AdmitPatientModal;

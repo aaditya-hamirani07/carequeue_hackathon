@@ -1,14 +1,37 @@
-# Dependencies
-node_modules/
+# ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.pyo
+*.pyd
 .venv/
+venv/
+*.egg-info/
 dist/
-.DS_Store
+build/
 
-# Local SQLite Database
+# ── SQLite database & journals ────────────────────────────────────────────────
 data/*.db
+data/*.db-wal
+data/*.db-shm
 data/*.sqlite
 *.db
+*.db-wal
+*.db-shm
 
+# ── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── Environment ───────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── OS / Editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/

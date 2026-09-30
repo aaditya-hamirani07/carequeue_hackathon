@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, HeartPulse } from 'lucide-react';
 
 export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
   if (!isOpen || !patient) return null;
 
-  const current = patient.current_vitals;
+  const current = patient.current_vitals || {};
 
   const [heartRate, setHeartRate] = useState(current.heart_rate || '');
   const [systolicBp, setSystolicBp] = useState(current.systolic_bp || '');
@@ -16,6 +16,17 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
   const [painScore, setPainScore] = useState(current.pain_score || '');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const applyPreset = (preset) => {
     if (preset === 'ASTHMA_CRISIS') {
@@ -59,11 +70,17 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white border border-slate-200 rounded-xl w-full max-w-lg shadow-xl overflow-hidden text-slate-900">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white border border-slate-200 rounded-xl w-full max-w-lg shadow-xl overflow-hidden text-slate-900"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Modal Header */}
-        <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-slate-900 text-white">
               <HeartPulse className="h-4 w-4" />
@@ -73,14 +90,17 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
               <p className="text-xs font-mono text-slate-500">{patient.name} &bull; {patient.mrn}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 transition">
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-900 transition p-1 rounded"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Current Baseline Reference */}
-        <div className="px-5 py-2.5 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between text-xs font-mono-data">
-          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">Current On-File Vitals:</span>
+        <div className="px-5 py-2 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between text-xs font-mono">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current On-File:</span>
           <div className="flex items-center gap-2.5 text-slate-700 text-[11px]">
             <span>HR: <strong>{current.heart_rate ?? '--'}</strong></span>
             <span>BP: <strong>{current.systolic_bp ? `${current.systolic_bp}/${current.diastolic_bp}` : '--'}</strong></span>
@@ -91,7 +111,7 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
         </div>
 
         {/* Demo Preset Bar */}
-        <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
+        <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-200">
           <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 mb-1.5">
             Clinical Simulation Presets:
           </div>
@@ -140,7 +160,7 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
                 type="number"
                 value={systolicBp}
                 onChange={(e) => setSystolicBp(e.target.value)}
-                placeholder="e.g. 120"
+                placeholder="e.g. 130"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
               />
             </div>
@@ -151,13 +171,24 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
                 type="number"
                 value={diastolicBp}
                 onChange={(e) => setDiastolicBp(e.target.value)}
-                placeholder="e.g. 80"
+                placeholder="e.g. 85"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold text-slate-700 block mb-1">SpO2 Saturation (%)</label>
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Respiratory Rate (/min)</label>
+              <input
+                type="number"
+                value={respRate}
+                onChange={(e) => setRespRate(e.target.value)}
+                placeholder="e.g. 20"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">SpO2 Oxygen (%)</label>
               <input
                 type="number"
                 step="0.1"
@@ -169,54 +200,68 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Resp Rate (/min)</label>
-              <input
-                type="number"
-                value={respRate}
-                onChange={(e) => setRespRate(e.target.value)}
-                placeholder="e.g. 18"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
-              />
-            </div>
-
-            <div>
               <label className="text-[11px] font-semibold text-slate-700 block mb-1">Temperature (°C)</label>
               <input
                 type="number"
                 step="0.1"
                 value={temperature}
                 onChange={(e) => setTemperature(e.target.value)}
-                placeholder="e.g. 37.0"
+                placeholder="e.g. 37.2"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">GCS (3-15)</label>
+              <input
+                type="number"
+                min="3"
+                max="15"
+                value={gcs}
+                onChange={(e) => setGcs(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">Pain Score (0-10)</label>
+              <input
+                type="number"
+                min="0"
+                max="10"
+                value={painScore}
+                onChange={(e) => setPainScore(e.target.value)}
+                placeholder="0-10"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-900 focus:bg-white"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-slate-700 block mb-1">Nursing / Triage Observation</label>
-            <textarea
+            <label className="text-[11px] font-semibold text-slate-700 block mb-1">Clinical Observation / Note</label>
+            <input
+              type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Patient visibly diaphoretic, reports sudden chest tightness..."
-              rows={2}
+              placeholder="e.g. Repeat check after nebulizer treatment..."
               className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition"
+              className="px-3.5 py-2 rounded-md border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-black text-xs font-bold text-white transition shadow-sm active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-xs font-bold transition disabled:opacity-50 active:scale-95 shadow-xs"
             >
-              {isSubmitting ? 'Recalculating...' : 'Apply & Recalculate Priority'}
+              {isSubmitting ? 'Evaluating NEWS2...' : 'Save & Re-evaluate Queue'}
             </button>
           </div>
         </form>
@@ -225,3 +270,4 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
     </div>
   );
 }
+export default VitalsModal;

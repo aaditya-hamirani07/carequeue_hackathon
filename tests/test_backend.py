@@ -42,10 +42,12 @@ def test_clinical_scoring():
     assert len(patients) == 6, f"Expected 6 demo patients, got {len(patients)}"
     print(f"[PASS] {len(patients)} Demo Patient Profiles loaded successfully")
 
-    # 5. Test SQLite persistence module
+    # 5. Test SQLite persistence module — reset to demo baseline first so
+    #    previous attend operations in the live DB don't affect the count.
     init_db()
+    reset_database_to_demo()
     db_patients = get_all_patients()
-    assert len(db_patients) >= 6, f"Expected >= 6 DB patients, got {len(db_patients)}"
+    assert len(db_patients) == 6, f"Expected 6 DB patients after demo reset, got {len(db_patients)}"
     print(f"[PASS] SQLite database loaded {len(db_patients)} patients successfully")
 
     print("\nALL CLINICAL & BACKEND UNIT TESTS PASSED!")

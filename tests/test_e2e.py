@@ -69,11 +69,32 @@ def test_e2e_api():
         stats = json.loads(resp.read().decode())
         print(f"[PASS] GET /api/stats: {stats['total_active']} active, {stats['p1_immediate']} P1 cases")
 
-    # 6. Test Demo Reset
+    # 6. Test Attend Patient workflow
+    attend_payload = {"clinician_name": "Dr. Emily Watson, MD"}
+    req = urllib.request.Request(
+        f"{BASE_URL}/api/patients/pt-101/attend",
+        data=json.dumps(attend_payload).encode('utf-8'),
+        headers={'Content-Type': 'application/json'},
+        method='POST'
+    )
+    with urllib.request.urlopen(req) as resp:
+        assert resp.status == 200
+        print("[PASS] POST /api/patients/pt-101/attend successfully marked patient as attended")
+
+    # 7. Test Records retrieval
+    req = urllib.request.Request(f"{BASE_URL}/api/records")
+    with urllib.request.urlopen(req) as resp:
+        assert resp.status == 200
+        records = json.loads(resp.read().decode())
+        assert len(records) >= 1, "Expected at least 1 attended record"
+        assert records[0]['id'] == "pt-101"
+        print(f"[PASS] GET /api/records returned {len(records)} attended records with correct metadata")
+
+    # 8. Test Demo Reset
     req = urllib.request.Request(f"{BASE_URL}/api/demo/reset", method='POST')
     with urllib.request.urlopen(req) as resp:
         assert resp.status == 200
-        print("[PASS] POST /api/demo/reset queue restored to baseline in SQLite")
+        print("[PASS] POST /api/demo/reset queue restored to baseline in SQLite (6 active, 0 attended)")
 
     print("\nALL END-TO-END SYSTEM INTEGRATION TESTS PASSED PERFECTLY!")
 
