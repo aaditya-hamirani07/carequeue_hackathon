@@ -78,6 +78,18 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
           </button>
         </div>
 
+        {/* Current Baseline Reference */}
+        <div className="px-5 py-2.5 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between text-xs font-mono-data">
+          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">Current On-File Vitals:</span>
+          <div className="flex items-center gap-2.5 text-slate-700 text-[11px]">
+            <span>HR: <strong>{current.heart_rate ?? '--'}</strong></span>
+            <span>BP: <strong>{current.systolic_bp ? `${current.systolic_bp}/${current.diastolic_bp}` : '--'}</strong></span>
+            <span>SpO2: <strong>{current.sp_o2 ? `${current.sp_o2}%` : '--'}</strong></span>
+            <span>RR: <strong>{current.resp_rate ?? '--'}</strong></span>
+            <span>NEWS2: <strong className="text-slate-900">{patient.urgency?.news2_score ?? 0}</strong></span>
+          </div>
+        </div>
+
         {/* Demo Preset Bar */}
         <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
           <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 mb-1.5">
@@ -87,21 +99,21 @@ export function VitalsModal({ patient, isOpen, onClose, onSubmitVitals }) {
             <button
               type="button"
               onClick={() => applyPreset('ASTHMA_CRISIS')}
-              className="px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-medium transition"
+              className="px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-medium transition active:scale-95"
             >
               Acute Hypoxia (SpO2 88%)
             </button>
             <button
               type="button"
               onClick={() => applyPreset('SEPSIS_DRIFT')}
-              className="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-medium transition"
+              className="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-medium transition active:scale-95"
             >
               Hypotension / Shock (BP 85)
             </button>
             <button
               type="button"
               onClick={() => applyPreset('STABILIZED')}
-              className="px-2.5 py-1 rounded bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-medium transition"
+              className="px-2.5 py-1 rounded bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-medium transition active:scale-95"
             >
               Stabilized Normal
             </button>

@@ -14,6 +14,7 @@ class PatientStatus(str, Enum):
     IN_TRIAGE = "IN_TRIAGE"
     ATTENDING = "ATTENDING"
     COMPLETED = "COMPLETED"
+    ATTENDED = "ATTENDED"  # Final state: provider has attended/reviewed
 
 class Vitals(BaseModel):
     heart_rate: Optional[int] = Field(None, description="Beats per minute")
@@ -56,6 +57,23 @@ class OverrideRequest(BaseModel):
     reason: str
     provider_name: str = "Dr. Attending"
 
+class AttendRequest(BaseModel):
+    clinician_name: str = "Attending Provider"
+
+class AttendanceRecord(BaseModel):
+    id: int
+    patient_id: str
+    patient_name: str
+    patient_age: int
+    patient_gender: str
+    chief_complaint: str
+    attended_at: str
+    clinician_name: str
+    tier_at_attendance: str
+    urgency_score_at_attendance: float
+    news2_at_attendance: int
+    patient: Optional[Any] = None  # Full patient object for drawer
+
 class Patient(BaseModel):
     id: str
     mrn: str
@@ -73,3 +91,4 @@ class Patient(BaseModel):
     status: PatientStatus = PatientStatus.WAITING
     manual_override: Optional[Dict[str, Any]] = None
     urgency: Optional[UrgencyScore] = None
+    attendance: Optional[Dict[str, Any]] = None  # Set when status=ATTENDED

@@ -1,3 +1,11 @@
+import sys
+import os
+
+# Ensure backend directory is in sys.path so modules can be imported directly
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any, Optional
@@ -6,15 +14,15 @@ import uuid
 
 from models import (
     Patient, Vitals, PatientStatus, PriorityTier,
-    VitalsUpdateRequest, NoteAddRequest, OverrideRequest
+    VitalsUpdateRequest, NoteAddRequest, OverrideRequest, AttendRequest
 )
 from scoring_engine import calculate_urgency
 from ai_engine import generate_ai_briefing
-from mock_data import get_initial_mock_patients
+import database as db
 
 app = FastAPI(
     title="CareQueue Assist API",
-    description="Intelligent Patient Prioritization Assistant for Healthcare Providers",
+    description="Intelligent Patient Prioritization Assistant for Healthcare Providers (Local SQLite)",
     version="1.0.0"
 )
 
@@ -27,27 +35,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-Memory State Store
-PATIENT_STORE: Dict[str, Patient] = {}
-
-def refresh_patient_urgency(patient: Patient):
-    score = calculate_urgency(
-        current_vitals=patient.current_vitals,
-        symptoms=patient.symptoms,
-        arrival_time_str=patient.arrival_time,
-        age=patient.age,
-        medical_history=patient.medical_history
-    )
-    patient.urgency = score
-
-def initialize_store():
-    global PATIENT_STORE
-    PATIENT_STORE = {}
-    for p in get_initial_mock_patients():
-        refresh_patient_urgency(p)
-        PATIENT_STORE[p.id] = p
-
-initialize_store()
+# Initialize database schema and initial seed data if empty
+db.init_db()
 
 TIER_ORDER = {
     PriorityTier.P1_IMMEDIATE: 1,
@@ -58,22 +47,19 @@ TIER_ORDER = {
 
 @app.get("/")
 def root():
+    patients = db.get_all_patients()
     return {
         "service": "CareQueue Assist API",
         "status": "operational",
-        "active_patients": len(PATIENT_STORE),
+        "storage": "SQLite (Local Persistence)",
+        "active_patients": len(patients),
         "docs_url": "/docs"
     }
 
 @app.get("/api/patients")
 async def get_patients(status: Optional[str] = None):
-    # Refresh all urgency calculations on poll/fetch to account for elapsed wait time
-    results = []
-    for p in PATIENT_STORE.values():
-        if status and p.status.value != status:
-            continue
-        refresh_patient_urgency(p)
-        results.append(p)
+    # Retrieve all patients with real-time urgency re-evaluated from SQLite
+    results = db.get_all_patients(status=status)
 
     # Sort algorithm:
     # 1. Effective Tier (accounting for manual override if present)
@@ -90,118 +76,85 @@ async def get_patients(status: Optional[str] = None):
 
 @app.get("/api/patients/{patient_id}")
 async def get_patient_detail(patient_id: str):
-    patient = PATIENT_STORE.get(patient_id)
+    patient = db.get_patient_by_id(patient_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    refresh_patient_urgency(patient)
     if not patient.urgency.ai_briefing:
         patient.urgency.ai_briefing = await generate_ai_briefing(patient, patient.urgency)
     return patient
 
 @app.post("/api/patients")
 async def create_patient(patient_data: Patient):
-    refresh_patient_urgency(patient_data)
-    PATIENT_STORE[patient_data.id] = patient_data
-    return patient_data
+    created = db.create_patient_record(patient_data)
+    if not created:
+        raise HTTPException(status_code=500, detail="Failed to persist patient record")
+    return created
 
 @app.post("/api/patients/{patient_id}/vitals")
 async def record_vitals(patient_id: str, request: VitalsUpdateRequest):
-    patient = PATIENT_STORE.get(patient_id)
-    if not patient:
+    result = db.record_patient_vitals(patient_id, request.vitals, request.note)
+    if not result:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    old_tier = patient.urgency.tier if patient.urgency else "UNKNOWN"
-    
-    # Update current vitals and append to history
-    vitals = request.vitals
-    vitals.recorded_at = datetime.now(timezone.utc).isoformat()
-    patient.current_vitals = vitals
-    patient.vitals_history.append(vitals)
-
-    if request.note:
-        patient.notes.append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "author": "Nurse / Vitals Check",
-            "text": f"Vitals check: {request.note}"
-        })
-
-    refresh_patient_urgency(patient)
+    # Generate fresh clinical briefing
+    patient = result["patient"]
     patient.urgency.ai_briefing = await generate_ai_briefing(patient, patient.urgency)
-    
-    new_tier = patient.urgency.tier
-    return {
-        "status": "success",
-        "message": f"Vitals recorded. Priority shifted from {old_tier} to {new_tier}.",
-        "patient": patient,
-        "escalated": old_tier != new_tier
-    }
+    result["patient"] = patient
+
+    return result
 
 @app.post("/api/patients/{patient_id}/notes")
 async def add_clinical_note(patient_id: str, req: NoteAddRequest):
-    patient = PATIENT_STORE.get(patient_id)
-    if not patient:
+    result = db.add_patient_note(patient_id, req.author, req.text, req.is_critical_flag)
+    if not result:
         raise HTTPException(status_code=404, detail="Patient not found")
-
-    patient.notes.append({
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "author": req.author,
-        "text": req.text,
-        "is_critical": req.is_critical_flag
-    })
-
-    # If critical note is flagged, check if symptoms should be enriched
-    if req.is_critical_flag:
-        patient.symptoms.append(req.text)
-        refresh_patient_urgency(patient)
-
-    return {"status": "success", "notes": patient.notes, "patient": patient}
+    return result
 
 @app.post("/api/patients/{patient_id}/override")
 async def override_priority(patient_id: str, req: OverrideRequest):
-    patient = PATIENT_STORE.get(patient_id)
+    patient = db.record_patient_override(patient_id, req.new_tier, req.reason, req.provider_name)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-
-    patient.manual_override = {
-        "new_tier": req.new_tier,
-        "reason": req.reason,
-        "provider_name": req.provider_name,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
-    
-    patient.notes.append({
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "author": req.provider_name,
-        "text": f"Manual Provider Priority Override to {req.new_tier.value}. Rationale: {req.reason}"
-    })
-
     return {"status": "success", "patient": patient}
 
 @app.post("/api/patients/{patient_id}/status")
 async def update_status(patient_id: str, new_status: PatientStatus):
-    patient = PATIENT_STORE.get(patient_id)
+    patient = db.update_patient_status(patient_id, new_status)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-
-    patient.status = new_status
     return {"status": "success", "patient": patient}
+
+@app.post("/api/patients/{patient_id}/attend")
+async def attend_patient_endpoint(patient_id: str, req: AttendRequest):
+    result = db.attend_patient(patient_id, req.clinician_name)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    if result == "already_attended":
+        raise HTTPException(status_code=409, detail="Patient has already been attended")
+    return result
+
+@app.get("/api/records")
+async def get_records():
+    """Returns all attended patients sorted by most recently attended."""
+    records = db.get_all_records()
+    return records
 
 @app.post("/api/demo/reset")
 async def reset_demo():
-    initialize_store()
-    return {"status": "success", "message": "Queue reset to initial demo state", "count": len(PATIENT_STORE)}
+    count = db.reset_database_to_demo()
+    return {"status": "success", "message": "Queue reset to initial demo state", "count": count}
 
 @app.get("/api/stats")
 async def get_stats():
-    total = len(PATIENT_STORE)
+    patients = db.get_all_patients()
+    total = len(patients)
     p1_count = 0
     p2_count = 0
     p3_count = 0
     p4_count = 0
     total_wait = 0
 
-    for p in PATIENT_STORE.values():
-        refresh_patient_urgency(p)
+    for p in patients:
         tier = p.manual_override.get("new_tier") if p.manual_override else p.urgency.tier
         if tier == PriorityTier.P1_IMMEDIATE:
             p1_count += 1
@@ -222,5 +175,7 @@ async def get_stats():
         "p2_urgent": p2_count,
         "p3_delayed": p3_count,
         "p4_routine": p4_count,
-        "avg_wait_minutes": avg_wait
+        "avg_wait_minutes": avg_wait,
+        "attended_today": db.get_attended_today_count()
     }
+

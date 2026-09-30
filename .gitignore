@@ -6,3 +6,9 @@ __pycache__/
 .venv/
 dist/
 .DS_Store
+
+# Local SQLite Database
+data/*.db
+data/*.sqlite
+*.db
+
