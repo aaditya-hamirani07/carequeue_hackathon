@@ -154,5 +154,3 @@ Open: **http://localhost:5173**
 | GET    | `/api/records`                  | Retrieve all attended patient history records (newest first)   |
 | GET    | `/api/stats`                    | Queue telemetry (active cases, P1, P2, avg wait, attended)     |
 | POST   | `/api/demo/reset`               | Reset database to initial 6-patient demo baseline              |
-
-Interactive Swagger Documentation: **http://127.0.0.1:8000/docs**
