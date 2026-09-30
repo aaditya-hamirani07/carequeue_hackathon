@@ -2,11 +2,9 @@
 
 **Assistive Clinical Patient Prioritisation & Attended Records Workstation**
 
+CareQueue Assist is a provider-facing clinical decision-support workstation **built as a hackathon prototype** to explore how structured clinical data, deterministic prioritisation, and attended-record workflows can be combined into a practical healthcare interface.
+
 CareQueue Assist helps healthcare providers organise and prioritise patient cases using structured clinical data — NEWS2 vital signs scoring, symptom analysis, wait time weighting, and provider attendance history.
-
-> **CLINICAL SAFETY NOTICE:** CareQueue Assist is strictly a provider decision-support tool. It does not diagnose, prescribe, recommend treatment, or make final clinical decisions. Qualified healthcare professionals remain the sole clinical decision-makers at all times.
-
----
 
 ## Key Features
 
